@@ -26,8 +26,8 @@ def get_env_int(key: str, default: int) -> int:
     raw = os.getenv(key, "").strip()
     return int(raw) if raw.isdigit() else default
 
-
-WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0" if os.getenv("PORT") else "127.0.0.1")
+# На Render ВСЕГДА нужно биндиться к 0.0.0.0
+WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
 WEB_PORT = get_env_int("PORT", get_env_int("WEB_PORT", 5000))
 
 intents = discord.Intents.default()
