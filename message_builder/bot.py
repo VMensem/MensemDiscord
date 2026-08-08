@@ -9,6 +9,24 @@ from discord.ext import commands
 from .database import init_db
 
 
+def _candidate_ports() -> list[int]:
+    web_port = int(os.getenv("WEB_PORT", 5000))
+    raw_port = os.getenv("MESSAGE_BUILDER_PORT") or os.getenv("BOT_INTERNAL_PORT")
+    candidates: list[int] = []
+
+    try:
+        preferred = int(raw_port) if raw_port else 8081
+    except ValueError:
+        preferred = 8081
+
+    for port in (preferred, 8081, 8082, 8083, 8084):
+        if port == web_port or port in candidates:
+            continue
+        candidates.append(port)
+
+    return candidates
+
+
 class MessageBuilderCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -20,22 +38,20 @@ class MessageBuilderCog(commands.Cog):
 
     async def cog_load(self):
         await self.runner.setup()
-        web_port = int(os.getenv("WEB_PORT", 5000))
-        raw_port = os.getenv("MESSAGE_BUILDER_PORT") or os.getenv("BOT_INTERNAL_PORT")
-        try:
-            port = int(raw_port) if raw_port else 8081
-        except ValueError:
-            port = 8081
-        if port == web_port:
-            port = 8081 if web_port != 8081 else 8082
+        last_error: OSError | None = None
 
-        self.site = web.TCPSite(self.runner, "localhost", port)
-        try:
-            await self.site.start()
-        except OSError as exc:
-            logging.warning("Message builder internal API disabled on port %s: %s", port, exc)
+        for port in _candidate_ports():
+            self.site = web.TCPSite(self.runner, "localhost", port)
+            try:
+                await self.site.start()
+                return
+            except OSError as exc:
+                last_error = exc
+                self.site = None
+
+        if last_error is not None:
+            logging.warning("Message builder internal API disabled: %s", last_error)
             await self.runner.cleanup()
-            self.site = None
 
     async def cog_unload(self):
         if self.site is not None:

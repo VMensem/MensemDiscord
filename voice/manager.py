@@ -2,7 +2,13 @@ import logging
 
 import discord
 
-from .database import add_room, delete_room as mark_room_inactive, get_active_room, get_room
+from .database import (
+    add_room,
+    delete_room as mark_room_inactive,
+    get_active_room,
+    get_room,
+    update_room_panel,
+)
 from .love import create_love
 from .panel import send_panel
 from .personal import create_personal
@@ -29,6 +35,18 @@ async def _restore_existing_room(member, room_type: str):
     created_channels[room.id] = {"owner": member.id, "type": room_type}
     if member.voice is None or member.voice.channel != room:
         await member.move_to(room)
+
+    panel_channel_id = existing["panel_channel_id"] if "panel_channel_id" in existing.keys() else None
+    panel_channel = None
+    if panel_channel_id:
+        panel_channel = member.guild.get_channel(int(panel_channel_id))
+    if panel_channel is None:
+        try:
+            panel_channel = await send_panel(room, member)
+            if panel_channel is not None:
+                await update_room_panel(room.id, panel_channel.id)
+        except Exception:
+            logging.exception("Failed to restore voice panel")
     return room
 
 
@@ -63,7 +81,9 @@ async def create_room(member, room_type):
         await member.move_to(room)
 
     try:
-        await send_panel(room, member)
+        panel_channel = await send_panel(room, member)
+        if panel_channel is not None:
+            await update_room_panel(room.id, panel_channel.id)
     except Exception:
         logging.exception("Failed to send voice panel")
 
@@ -82,6 +102,10 @@ async def delete_room(channel):
     if room is None and db_room is None:
         return
 
+    panel_channel_id = None
+    if db_room is not None:
+        panel_channel_id = db_room["panel_channel_id"] if "panel_channel_id" in db_room.keys() else None
+
     try:
         await channel.delete()
     except discord.NotFound:
@@ -89,5 +113,14 @@ async def delete_room(channel):
     except Exception:
         logging.exception("Failed to delete voice room")
     finally:
+        if panel_channel_id:
+            panel_channel = channel.guild.get_channel(int(panel_channel_id))
+            if panel_channel is not None:
+                try:
+                    await panel_channel.delete()
+                except discord.NotFound:
+                    pass
+                except Exception:
+                    logging.exception("Failed to delete linked voice panel")
         await mark_room_inactive(channel.id)
         created_channels.pop(channel.id, None)

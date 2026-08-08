@@ -25,6 +25,12 @@ async def init_database():
             """
         )
 
+        cursor = await db.execute("PRAGMA table_info(rooms)")
+        columns = await cursor.fetchall()
+        column_names = {row[1] for row in columns}
+        if "panel_channel_id" not in column_names:
+            await db.execute("ALTER TABLE rooms ADD COLUMN panel_channel_id INTEGER")
+
         await db.execute(
             """
             CREATE TABLE IF NOT EXISTS personal_rooms (
@@ -53,7 +59,13 @@ async def init_database():
         await db.commit()
 
 
-async def add_room(channel_id: int, owner_id: int, room_type: str, channel_name: str):
+async def add_room(
+    channel_id: int,
+    owner_id: int,
+    room_type: str,
+    channel_name: str,
+    panel_channel_id: int | None = None,
+):
     async with aiosqlite.connect(DATABASE) as db:
         db.row_factory = aiosqlite.Row
         await db.execute(
@@ -63,16 +75,18 @@ async def add_room(channel_id: int, owner_id: int, room_type: str, channel_name:
                 owner_id,
                 room_type,
                 channel_name,
+                panel_channel_id,
                 is_active
             )
-            VALUES (?, ?, ?, ?, 1)
+            VALUES (?, ?, ?, ?, ?, 1)
             ON CONFLICT(channel_id) DO UPDATE SET
                 owner_id = excluded.owner_id,
                 room_type = excluded.room_type,
                 channel_name = excluded.channel_name,
+                panel_channel_id = excluded.panel_channel_id,
                 is_active = 1
             """,
-            (channel_id, owner_id, room_type, channel_name),
+            (channel_id, owner_id, room_type, channel_name, panel_channel_id),
         )
         await db.commit()
 
@@ -134,6 +148,20 @@ async def update_room_owner(channel_id: int, owner_id: int):
             WHERE channel_id = ?
             """,
             (owner_id, channel_id),
+        )
+        await db.commit()
+
+
+async def update_room_panel(channel_id: int, panel_channel_id: int | None):
+    async with aiosqlite.connect(DATABASE) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute(
+            """
+            UPDATE rooms
+            SET panel_channel_id = ?
+            WHERE channel_id = ?
+            """,
+            (panel_channel_id, channel_id),
         )
         await db.commit()
 

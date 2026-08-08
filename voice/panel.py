@@ -13,19 +13,53 @@ def _bot_member(guild: discord.Guild) -> discord.Member | None:
     return guild.me
 
 
-def _guild_text_channel(guild: discord.Guild) -> discord.abc.Messageable | None:
+def _panel_topic(channel_id: int) -> str:
+    return f"voice-panel:{channel_id}"
+
+
+def _panel_channel_name(channel: discord.VoiceChannel) -> str:
+    return f"{channel.name}-panel"
+
+
+async def _get_or_create_panel_channel(
+    voice_channel: discord.VoiceChannel,
+    owner: discord.Member,
+) -> discord.TextChannel | None:
+    guild = voice_channel.guild
     bot_member = _bot_member(guild)
     if bot_member is None:
         return None
 
-    if guild.system_channel and guild.system_channel.permissions_for(bot_member).send_messages:
-        return guild.system_channel
+    topic = _panel_topic(voice_channel.id)
+    existing = discord.utils.get(guild.text_channels, topic=topic)
+    if existing is not None:
+        return existing
 
-    for channel in guild.text_channels:
-        if channel.permissions_for(bot_member).send_messages:
-            return channel
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        owner: discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            embed_links=True,
+            attach_files=True,
+        ),
+        bot_member: discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            manage_messages=True,
+            embed_links=True,
+            attach_files=True,
+        ),
+    }
 
-    return None
+    return await guild.create_text_channel(
+        name=_panel_channel_name(voice_channel),
+        category=voice_channel.category,
+        topic=topic,
+        overwrites=overwrites,
+    )
 
 
 def _voice_channel(interaction: discord.Interaction) -> discord.VoiceChannel | None:
@@ -52,6 +86,19 @@ async def _require_channel(interaction: discord.Interaction) -> discord.VoiceCha
         await interaction.response.send_message("Сначала зайди в голосовой канал.", ephemeral=True)
         return None
     return channel
+
+
+async def _delete_panel_channel(voice_channel: discord.VoiceChannel) -> None:
+    panel_channel = discord.utils.get(voice_channel.guild.text_channels, topic=_panel_topic(voice_channel.id))
+    if panel_channel is None:
+        return
+
+    try:
+        await panel_channel.delete()
+    except discord.NotFound:
+        pass
+    except Exception:
+        logging.exception("Failed to delete voice panel channel")
 
 
 class VoicePanel(View):
@@ -120,7 +167,7 @@ class VoicePanel(View):
         await channel.set_permissions(channel.guild.default_role, overwrite=overwrite)
         await interaction.response.send_message("Комната открыта.", ephemeral=True)
 
-    @discord.ui.button(emoji="🙈", label="Скрыть", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(emoji="👁️", label="Скрыть", style=discord.ButtonStyle.secondary)
     async def hide(self, interaction: discord.Interaction, button: discord.ui.Button):
         channel = await _require_channel(interaction)
         if channel is None:
@@ -134,7 +181,7 @@ class VoicePanel(View):
         await channel.set_permissions(channel.guild.default_role, overwrite=overwrite)
         await interaction.response.send_message("Комната скрыта.", ephemeral=True)
 
-    @discord.ui.button(emoji="👁️", label="Показать", style=discord.ButtonStyle.success)
+    @discord.ui.button(emoji="🫥", label="Показать", style=discord.ButtonStyle.success)
     async def show(self, interaction: discord.Interaction, button: discord.ui.Button):
         channel = await _require_channel(interaction)
         if channel is None:
@@ -162,6 +209,9 @@ class VoicePanel(View):
             await channel.delete()
         except Exception:
             logging.exception("Failed to delete voice channel from panel")
+            return
+
+        await _delete_panel_channel(channel)
 
 
 class RenameModal(Modal):
@@ -269,16 +319,15 @@ class TransferModal(Modal):
         await interaction.response.send_message(f"Владелец передан {member.mention}", ephemeral=True)
 
 
-async def send_panel(channel, owner):
-    guild = channel.guild
-    target_channel = _guild_text_channel(guild)
-    if target_channel is None:
-        logging.warning("No text channel found for voice panel in guild %s", guild.id)
-        return False
+async def send_panel(channel: discord.VoiceChannel, owner: discord.Member) -> discord.TextChannel | None:
+    panel_channel = await _get_or_create_panel_channel(channel, owner)
+    if panel_channel is None:
+        logging.warning("No text channel available for voice panel in guild %s", channel.guild.id)
+        return None
 
     embed = discord.Embed(
         title="Управление комнатой",
-        description="Управляйте своей временной голосовой комнатой.",
+        description="Панель управления вашей голосовой комнатой находится здесь.",
         color=discord.Color.red(),
     )
     embed.add_field(name="Владелец", value=owner.mention, inline=True)
@@ -287,5 +336,5 @@ async def send_panel(channel, owner):
     embed.set_thumbnail(url=owner.display_avatar.url)
     embed.set_footer(text=f"Mensem Voice • {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
-    await target_channel.send(embed=embed, view=VoicePanel(owner.id))
-    return True
+    await panel_channel.send(embed=embed, view=VoicePanel(owner.id))
+    return panel_channel
