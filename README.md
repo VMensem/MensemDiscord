@@ -1,6 +1,6 @@
 # MensemDiscord
 
-Discord bot for Mensem community with verification, staff recruitment, tickets, events, logs, banners, welcome cards, and a small status web app.
+Discord bot for Mensem community with verification, staff recruitment, tickets, events, logs, banners, and a small status web app.
 
 ## Run locally
 
@@ -35,6 +35,5 @@ python main.py
 ## Notes
 
 - Do not commit `.env`, database files, or generated banner images.
-- `banner` and `welcome` use local background assets if you do not override their paths in `.env`.
+- `banner` uses a local background asset if you do not override its path in `.env`.
 - The bot loads modules from `main.py` through `loader.py`.
-

@@ -8,7 +8,6 @@ MODULES = [
     "verify",
     "voice",
     "banner",
-    "welcome",
     "logs",
     "giveaways",
     "auto_roles",

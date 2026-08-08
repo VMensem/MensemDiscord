@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
 
 
 def get_env_int(key: str, default: int = 0) -> int:
@@ -32,7 +33,7 @@ BANNER_UPDATE_INTERVAL_SECONDS = max(30, get_env_int("BANNER_UPDATE_INTERVAL_SEC
 BANNER_LOG_CHANNEL_ID = get_env_int("BANNER_LOG_CHANNEL_ID", get_env_int("BANNER_LOG_CHANNEL", 0))
 BANNER_DEBUG_CHANNEL_ID = get_env_int("BANNER_DEBUG_CHANNEL_ID", 0)
 
-BACKGROUND_PATH = os.getenv("BANNER_BACKGROUND_PATH", "").strip() or str(BASE_DIR / "assets" / "background.png")
+BACKGROUND_PATH = os.getenv("BANNER_BACKGROUND_PATH", "").strip() or str(PROJECT_ROOT / "banner_background.png")
 FONT_PATH = os.getenv("BANNER_FONT_PATH", "").strip()
 TEMP_BANNER_PATH = str(BASE_DIR / "temp_banner.png")
 BANNER_SIZE = (1920, 1080)
