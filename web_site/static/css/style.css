@@ -1,0 +1,6 @@
+body { background: #121212; color: #e0e0e0; font-family: sans-serif; }
+nav { border-bottom: 2px solid #b71c1c; padding: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px; }
+.card { background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+.card h3 { color: #b71c1c; }
+a { color: #fff; text-decoration: none; display: block; margin-top: 10px; padding: 5px; background: #b71c1c; border-radius: 4px; text-align: center;}

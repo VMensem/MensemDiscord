@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: mensembot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: WEB_HOST
+        value: 0.0.0.0

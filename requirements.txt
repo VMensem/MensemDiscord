@@ -1,0 +1,10 @@
+discord.py
+python-dotenv
+aiosqlite
+psycopg[binary]
+Flask
+Pillow
+PyNaCl
+openai
+aiohttp
+google-genai
