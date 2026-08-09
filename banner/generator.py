@@ -49,10 +49,10 @@ def generate_banner(stats: dict) -> str:
 
     draw = ImageDraw.Draw(img)
     panels = {
-        "members": (220, 340, 150, 50),
-        "online": (220, 595, 150, 50),
-        "voice": (1370, 340, 150, 50),
-        "boosts": (1370, 595, 150, 50),
+        "members": (250, 390, 150, 50),
+        "online": (250, 680, 150, 50),
+        "voice": (1550, 390, 150, 50),
+        "boosts": (1550, 680, 150, 50),
     }
 
     font = _load_font(70)
