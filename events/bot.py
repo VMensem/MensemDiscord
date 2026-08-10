@@ -6,9 +6,9 @@ from .commands import event
 class Events(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        init_db()
 
     async def cog_load(self):
+        await init_db()
         self.bot.add_view(MainEventMenu())
 
 async def setup(bot):

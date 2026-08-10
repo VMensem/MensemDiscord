@@ -1,16 +1,16 @@
-import sqlite3
-import os
+from core.database import db_manager
 
-DB_PATH = "message_builder/data/templates.db"
+async def save_template(guild_id: int, user_id: int, name: str, json_data: str):
+    await db_manager.execute(
+        """
+        INSERT INTO message_templates (guild_id, user_id, name, json_data)
+        VALUES ($1, $2, $3, $4)
+        """,
+        guild_id, user_id, name, json_data
+    )
 
-def init_db():
-    os.makedirs("message_builder/data", exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS templates (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                name TEXT,
-                json_data TEXT
-            )
-        """)
+async def get_template(guild_id: int, name: str):
+    return await db_manager.fetchrow(
+        "SELECT * FROM message_templates WHERE guild_id = $1 AND name = $2",
+        guild_id, name
+    )

@@ -1,127 +1,59 @@
-import json
-import os
-import sqlite3
+from core.database import db_manager
 from datetime import datetime
 
-
-DB_PATH = "events/data/events.db"
-
-
-def init_db():
-    os.makedirs("events/data", exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                guild_id INTEGER,
-                creator_id INTEGER,
-                title TEXT,
-                type TEXT,
-                status TEXT DEFAULT 'pending',
-                channel_id INTEGER,
-                message_id INTEGER,
-                settings TEXT,
-                created_at DATETIME
-            );
-            CREATE TABLE IF NOT EXISTS participants (
-                event_id INTEGER,
-                user_id INTEGER,
-                is_reserve INTEGER DEFAULT 0,
-                registered_at DATETIME
-            );
-            CREATE TABLE IF NOT EXISTS winners (
-                event_id INTEGER,
-                user_id INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS reminders (
-                event_id INTEGER,
-                time_offset INTEGER,
-                sent INTEGER DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS event_history (
-                event_id INTEGER,
-                action TEXT,
-                actor_id INTEGER,
-                details TEXT,
-                timestamp DATETIME
-            );
-            """
-        )
-        conn.commit()
-
-
-def create_event(
+async def create_event(
     guild_id: int,
     creator_id: int,
     title: str,
-    event_type: str,
+    description: str,
+    start_time: str, # converted from event_date
+    duration: str, # Not directly in core schema, keeping it simple for now or adding to description
+    max_participants: int,
+    reward: str,
     channel_id: int | None,
     message_id: int | None,
-    settings: dict,
 ) -> int:
-    init_db()
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO events (
-                guild_id,
-                creator_id,
-                title,
-                type,
-                status,
-                channel_id,
-                message_id,
-                settings,
-                created_at
-            )
-            VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
-            """,
-            (
-                guild_id,
-                creator_id,
-                title,
-                event_type,
-                channel_id,
-                message_id,
-                json.dumps(settings, ensure_ascii=False),
-                datetime.utcnow().isoformat(timespec="seconds"),
-            ),
+    # Adding duration/channel_id/message_id to description for now to fit simple schema or extending schema later
+    row = await db_manager.fetchrow(
+        """
+        INSERT INTO events (
+            guild_id,
+            creator_id,
+            title,
+            description,
+            start_time,
+            max_participants,
+            reward,
+            state
         )
-        conn.commit()
-        return int(cursor.lastrowid)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft')
+        RETURNING event_id
+        """,
+        guild_id,
+        creator_id,
+        title,
+        f"{description}\nDuration: {duration}\nChannel: {channel_id}\nMessage: {message_id}",
+        start_time,
+        max_participants,
+        reward
+    )
+    return row["event_id"] if row else 0
 
+async def add_event_history(event_id: int, action: str, actor_id: int, details: str) -> None:
+    # This might need a new table in core/schema.sql
+    pass
 
-def add_event_history(event_id: int, action: str, actor_id: int, details: str) -> None:
-    init_db()
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            """
-            INSERT INTO event_history (
-                event_id,
-                action,
-                actor_id,
-                details,
-                timestamp
-            )
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (event_id, action, actor_id, details, datetime.utcnow().isoformat(timespec="seconds")),
-        )
-        conn.commit()
-
-
-def count_events(guild_id: int | None = None) -> tuple[int, int]:
-    init_db()
-    query = "SELECT COUNT(*), SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) FROM events"
-    params: tuple[int, ...] = ()
+async def count_events(guild_id: int | None = None) -> tuple[int, int]:
     if guild_id is not None:
-        query += " WHERE guild_id = ?"
-        params = (guild_id,)
-
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        total, pending = cursor.fetchone()
-        return int(total or 0), int(pending or 0)
+        row = await db_manager.fetchrow(
+            "SELECT COUNT(*), SUM(CASE WHEN state = 'draft' THEN 1 ELSE 0 END) FROM events WHERE guild_id = $1",
+            guild_id
+        )
+    else:
+        row = await db_manager.fetchrow(
+            "SELECT COUNT(*), SUM(CASE WHEN state = 'draft' THEN 1 ELSE 0 END) FROM events"
+        )
+    
+    total = row[0] or 0
+    pending = row[1] or 0
+    return int(total), int(pending)

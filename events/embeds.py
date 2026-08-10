@@ -14,8 +14,8 @@ def create_event_embed(title, description, fields=None):
     return embed
 
 
-def create_event_menu_embed(guild: discord.Guild, member: discord.Member) -> discord.Embed:
-    total_events, pending_events = count_events(guild.id)
+async def create_event_menu_embed(guild: discord.Guild, member: discord.Member) -> discord.Embed:
+    total_events, pending_events = await count_events(guild.id)
     embed = discord.Embed(
         title="Управление событиями",
         description="Панель для быстрого создания и контроля событий на сервере.",

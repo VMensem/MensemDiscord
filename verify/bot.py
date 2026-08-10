@@ -800,13 +800,14 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         voice_joined_at[key] = now
         save_stats()
 
-
-def setup(bot: commands.Bot):
-    init_database()
-    load_stats()
+async def setup(bot: commands.Bot):
+    await init_database()
+    await load_stats_db()
 
     @bot.tree.command(name="verify", description="Открыть панель верификации участника")
     async def verify(interaction: discord.Interaction, user: str) -> None:
+# ...
+
         if interaction.guild is None:
             return await interaction.response.send_message("Команда доступна только на сервере.", ephemeral=True)
         if interaction.guild.id != config.GUILD_ID:
