@@ -54,6 +54,16 @@ async def set_application_message(application_id: int, channel_id: int, message_
         channel_id, message_id, application_id
     )
 
+async def cancel_application(application_id: int, *, reason: str | None = None) -> None:
+    await db_manager.execute(
+        """
+        UPDATE staff_applications
+        SET status = 'cancelled', rejection_reason = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE application_id = $2
+        """,
+        reason, application_id
+    )
+
 async def mark_application_review_state(application_id: int, *, reviewer_id: int, status: str, rejection_reason: str | None = None) -> dict[str, Any]:
     await db_manager.execute(
         """

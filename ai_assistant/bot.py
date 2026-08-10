@@ -8,7 +8,6 @@ from discord import app_commands
 from discord.ext import commands
 
 from .client import AIClient
-from .database import init_db
 from .providers import AIProviderError
 
 
@@ -57,7 +56,6 @@ async def send_error(interaction: discord.Interaction, title: str, description: 
 
 
 def setup(bot: commands.Bot):
-    init_db()
     global _client
     _client = AIClient()
 

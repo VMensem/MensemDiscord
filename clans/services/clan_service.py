@@ -1,5 +1,5 @@
 import discord
-from clans.database import create_clan, add_clan_member
+from ..database import create_clan, add_clan_member
 
 async def create_new_clan(guild: discord.Guild, leader: discord.Member, name: str, tag: str, description: str) -> bool:
     # 1. Create Discord structure
