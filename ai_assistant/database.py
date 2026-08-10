@@ -39,8 +39,10 @@ async def get_history(user_id: int, limit: int = 12, ttl_days: int | None = None
     rows = await db_manager.fetch(query, *params)
     return [{"role": row["role"], "message": row["message"], "timestamp": str(row["timestamp"])} for row in reversed(rows)]
 
+async def clear_history(user_id: int) -> None:
+    await db_manager.execute("DELETE FROM ai_history WHERE user_id = $1", user_id)
+
 async def cleanup_history(user_id: int, keep_limit: int, ttl_days: int) -> None:
-    # Minimal implementation for compatibility
     await db_manager.execute("DELETE FROM ai_history WHERE user_id = $1 AND timestamp < $2", user_id, time.time() - (ttl_days * 86400))
 
 async def check_rate_limit(user_id: int, limit_per_hour: int) -> bool:

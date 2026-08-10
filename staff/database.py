@@ -13,6 +13,11 @@ class StaffApplicationConflict(StaffDatabaseError):
         super().__init__(message)
         self.application = application
 
+class StaffApplicationStateError(StaffDatabaseError):
+    def __init__(self, message, application=None):
+        super().__init__(message)
+        self.application = application
+
 async def init_db():
     pass
 

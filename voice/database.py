@@ -37,6 +37,12 @@ async def update_room_owner(channel_id: int, owner_id: int):
         owner_id, channel_id
     )
 
+async def update_room_panel(channel_id: int, panel_channel_id: int | None):
+    await db_manager.execute(
+        "UPDATE voice_rooms SET panel_channel_id = $1 WHERE channel_id = $2",
+        panel_channel_id, channel_id
+    )
+
 async def get_owner(channel_id: int):
     room = await get_room(channel_id)
     return room["owner_id"] if room else None
