@@ -6,15 +6,7 @@ from ..services.clan_service import create_new_clan
 from ..services.clan_bank import deposit_to_clan, withdraw_from_clan
 from ..views.top_view import ClanTopView
 from ..database import get_clan_by_id, get_clan_members, get_clans_by_guild
-
-# ... inside ClanCommands class ...
-    @app_commands.command(name="top", description="Топ кланов")
-    async def top(self, interaction: discord.Interaction):
-        clans = await get_clans_by_guild(interaction.guild_id)
-        if not clans:
-            return await interaction.response.send_message("Кланов пока нет.", ephemeral=True)
-        view = ClanTopView(clans)
-        await interaction.response.send_message(embed=view.get_embed(), view=view, ephemeral=True)
+from ..views.settings_view import ClanSettingsView
 
 class CreateClanModal(discord.ui.Modal, title="Создание клана"):
     name = discord.ui.TextInput(label="Название клана", min_length=3, max_length=20)
@@ -78,6 +70,14 @@ class ClanCommands(commands.GroupCog, group_name="clan"):
             return await interaction.response.send_message("Настройки доступны только лидеру клана.", ephemeral=True)
             
         await interaction.response.send_message("Выберите настройку:", view=ClanSettingsView(clan_id), ephemeral=True)
+
+    @app_commands.command(name="top", description="Топ кланов")
+    async def top(self, interaction: discord.Interaction):
+        clans = await get_clans_by_guild(interaction.guild_id)
+        if not clans:
+            return await interaction.response.send_message("Кланов пока нет.", ephemeral=True)
+        view = ClanTopView(clans)
+        await interaction.response.send_message(embed=view.get_embed(), view=view, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(ClanCommands(bot))
