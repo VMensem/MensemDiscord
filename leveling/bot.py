@@ -43,7 +43,6 @@ class Leveling(commands.Cog):
         )
 
         if level_for_xp(new_xp) > level_for_xp(old_xp):
-            # ... handle level up ...
             pass
 
     @app_commands.command(name="rank", description="Показать уровень участника")
@@ -60,3 +59,6 @@ class Leveling(commands.Cog):
         embed.add_field(name="Уровень", value=str(level_for_xp(xp)))
         embed.add_field(name="XP", value=str(xp))
         await interaction.response.send_message(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(Leveling(bot))

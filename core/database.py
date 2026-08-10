@@ -7,8 +7,11 @@ class DatabaseManager:
         self.pool = None
 
     async def connect(self):
+        raw_url = os.getenv("DATABASE_URL")
+        url = "".join(raw_url.split()) if raw_url else None
+        logging.info(f"Connecting to database with URL: {url}")
         self.pool = await asyncpg.create_pool(
-            dsn=os.getenv("DATABASE_URL"),
+            dsn=url,
             min_size=5,
             max_size=20
         )

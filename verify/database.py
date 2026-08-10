@@ -1,7 +1,7 @@
 from core.database import db_manager
 
-async def init_database() -> None:
-    pass # Schema initialization is handled centrally
+async def init_database():
+    pass
 
 async def get_voice_seconds(guild_id: int, member_id: int) -> int:
     row = await db_manager.fetchrow(

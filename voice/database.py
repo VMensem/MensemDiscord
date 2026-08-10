@@ -1,5 +1,8 @@
 from core.database import db_manager
 
+async def init_database():
+    pass
+
 async def add_room(guild_id: int, channel_id: int, owner_id: int, room_type: str, channel_name: str, panel_channel_id: int | None = None):
     await db_manager.execute(
         """

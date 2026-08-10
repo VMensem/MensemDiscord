@@ -1,1 +1,4 @@
-# This file is deprecated in favor of core.database
+from core.database import db_manager
+
+async def init_db():
+    pass

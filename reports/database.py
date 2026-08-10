@@ -1,5 +1,8 @@
 from core.database import db_manager
 
+async def init_db():
+    pass
+
 async def create_report(guild_id, author_id, channel_id, reason, description, target_id=None):
     row = await db_manager.fetchrow(
         """

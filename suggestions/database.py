@@ -1,5 +1,8 @@
 from core.database import db_manager
 
+async def init_db():
+    pass
+
 async def add_suggestion(guild_id, author_id, channel_id, title, description):
     row = await db_manager.fetchrow(
         """

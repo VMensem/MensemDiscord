@@ -1,5 +1,8 @@
 from core.database import db_manager
 
+async def init_db():
+    pass
+
 async def create_ticket(guild_id, user_id, channel_id, category_id=None):
     row = await db_manager.fetchrow(
         """
