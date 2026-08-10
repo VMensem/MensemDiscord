@@ -19,6 +19,12 @@ async def get_room(channel_id: int):
         channel_id
     )
 
+async def get_active_room(owner_id: int, room_type: str):
+    return await db_manager.fetchrow(
+        "SELECT * FROM voice_rooms WHERE owner_id = $1 AND room_type = $2 AND is_active = TRUE ORDER BY room_id DESC LIMIT 1",
+        owner_id, room_type
+    )
+
 async def delete_room(channel_id: int):
     await db_manager.execute(
         "UPDATE voice_rooms SET is_active = FALSE WHERE channel_id = $1",
@@ -30,3 +36,7 @@ async def update_room_owner(channel_id: int, owner_id: int):
         "UPDATE voice_rooms SET owner_id = $1 WHERE channel_id = $2",
         owner_id, channel_id
     )
+
+async def get_owner(channel_id: int):
+    room = await get_room(channel_id)
+    return room["owner_id"] if room else None

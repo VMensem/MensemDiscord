@@ -57,5 +57,3 @@ async def get_recent_suggestions(guild_id: int, limit=10):
         "SELECT * FROM suggestions WHERE guild_id = $1 ORDER BY suggestion_id DESC LIMIT $2",
         guild_id, limit
     )
-
-    )

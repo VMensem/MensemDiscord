@@ -6,9 +6,6 @@ from aiohttp import web
 from discord import app_commands
 from discord.ext import commands
 
-from .database import init_db
-
-
 def _candidate_ports() -> list[int]:
     web_port = int(os.getenv("WEB_PORT", 5000))
     raw_port = os.getenv("MESSAGE_BUILDER_PORT") or os.getenv("BOT_INTERNAL_PORT")
@@ -30,7 +27,6 @@ def _candidate_ports() -> list[int]:
 class MessageBuilderCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        init_db()
         self.app = web.Application()
         self.app.router.add_post("/api/send-message", self.handle_send)
         self.runner = web.AppRunner(self.app)
