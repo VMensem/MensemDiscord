@@ -41,3 +41,29 @@ async def get_history(user_id: int, limit: int = 12, ttl_days: int | None = None
 
 async def clear_history(user_id: int) -> None:
     await db_manager.execute("DELETE FROM ai_history WHERE user_id = $1", user_id)
+
+async def check_rate_limit(user_id: int, limit_per_hour: int) -> bool:
+    now = time.time()
+    row = await db_manager.fetchrow(
+        "SELECT count, window_start FROM ai_ratelimits WHERE user_id = $1",
+        user_id
+    )
+
+    if not row or (now - float(row["window_start"])) > 3600:
+        await db_manager.execute(
+            """
+            INSERT INTO ai_ratelimits (user_id, count, window_start) VALUES ($1, 1, $2)
+            ON CONFLICT (user_id) DO UPDATE SET count = 1, window_start = $2
+            """,
+            user_id, now
+        )
+        return True
+
+    if int(row["count"]) < int(limit_per_hour):
+        await db_manager.execute(
+            "UPDATE ai_ratelimits SET count = count + 1 WHERE user_id = $1",
+            user_id
+        )
+        return True
+
+    return False

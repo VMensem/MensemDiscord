@@ -1,6 +1,6 @@
 from core.database import db_manager
 
-async def init_database():
+async def init_database() -> None:
     pass
 
 async def get_voice_seconds(guild_id: int, member_id: int) -> int:
@@ -19,3 +19,12 @@ async def add_voice_seconds(guild_id: int, member_id: int, seconds: int) -> None
         """,
         guild_id, member_id, seconds
     )
+
+async def load_stats_db():
+    # Placeholder for migration or if needed for legacy compatibility
+    return {}, {}, {}, {}, set()
+
+async def save_stats_db(*args):
+    # Placeholder for migration or if needed for legacy compatibility
+    pass
+
