@@ -1,49 +1,39 @@
-import os
-
 import discord
+from core.database import db_manager
 
-from .database import close_ticket, create_ticket
-
-
-def ticket_category_id() -> int:
-    raw = os.getenv("TICKET_CATEGORY_ID", "0").strip()
-    return int(raw) if raw.isdigit() else 0
-
-
-def ticket_log_channel_id() -> int:
-    raw = os.getenv("TICKET_LOG_CHANNEL_ID", "0").strip()
-    return int(raw) if raw.isdigit() else 0
+from .database import close_ticket, create_ticket, check_ticket_exists
 
 
 class TicketPanelView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(self.category_select())
 
-    def category_select(self):
-        select = discord.ui.Select(
-            placeholder="Выберите категорию тикета",
-            custom_id="ticket_category_select",
-            options=[
-                discord.SelectOption(label="Support", description="Помощь по серверу", value="Support", emoji="🛠️"),
-                discord.SelectOption(label="Жалоба", description="Подать жалобу", value="Report", emoji="📋"),
-                discord.SelectOption(label="Репорт", description="Репорт игрока", value="Complaint", emoji="⚠️"),
-                discord.SelectOption(label="Донат", description="Вопросы по донату", value="Donation", emoji="💰"),
-                discord.SelectOption(label="Другое", description="Другие вопросы", value="Other", emoji="❓"),
-            ],
-        )
-        select.callback = self.select_callback
-        return select
-
-    async def select_callback(self, interaction: discord.Interaction):
-        category = interaction.data["values"][0]
+    @discord.ui.select(
+        placeholder="Выберите категорию тикета",
+        custom_id="ticket_category_select",
+        options=[
+            discord.SelectOption(label="Support", description="Помощь по серверу", value="Support", emoji="🛠️"),
+            discord.SelectOption(label="Жалоба", description="Подать жалобу", value="Report", emoji="📋"),
+            discord.SelectOption(label="Репорт", description="Репорт игрока", value="Complaint", emoji="⚠️"),
+            discord.SelectOption(label="Донат", description="Вопросы по донату", value="Donation", emoji="💰"),
+            discord.SelectOption(label="Другое", description="Другие вопросы", value="Other", emoji="❓"),
+        ],
+    )
+    async def select_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+        category = select.values[0]
         guild = interaction.guild
         if guild is None:
             return await interaction.response.send_message("Тикеты доступны только на сервере.", ephemeral=True)
 
-        target_category = guild.get_channel(ticket_category_id()) if ticket_category_id() else None
-        if target_category and not isinstance(target_category, discord.CategoryChannel):
-            return await interaction.response.send_message("Ошибка конфигурации: Указанная категория тикетов не является категорией Discord.", ephemeral=True)
+        if await check_ticket_exists(guild.id, interaction.user.id):
+            return await interaction.response.send_message("У вас уже есть открытый тикет.", ephemeral=True)
+
+        settings = await db_manager.get_guild_settings(guild.id)
+        target_category_id = settings.get("ticket_category_id") if settings else None
+        
+        target_category = guild.get_channel(target_category_id) if target_category_id else None
+        if target_category_id and not target_category:
+            return await interaction.response.send_message("Ошибка конфигурации: Указанная категория тикетов не найдена.", ephemeral=True)
             
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -56,9 +46,7 @@ class TicketPanelView(discord.ui.View):
             channel = await guild.create_text_channel(name=name, category=target_category, overwrites=overwrites)
         except discord.Forbidden:
             return await interaction.response.send_message("У бота нет прав на создание тикетов.", ephemeral=True)
-        except discord.HTTPException as e:
-            if e.code == 50024:
-                return await interaction.response.send_message("Ошибка: Указанная категория тикетов не является категорией Discord.", ephemeral=True)
+        except discord.HTTPException:
             return await interaction.response.send_message("Не удалось создать канал тикета.", ephemeral=True)
 
         ticket_id = await create_ticket(guild.id, interaction.user.id, channel.id, category_id=category)
@@ -82,7 +70,10 @@ class TicketControlView(discord.ui.View):
         await close_ticket(interaction.channel.id)
         await interaction.response.send_message("Тикет закрывается.", ephemeral=True)
 
-        log_channel = interaction.guild.get_channel(ticket_log_channel_id()) if interaction.guild else None
+        settings = await db_manager.get_guild_settings(interaction.guild.id) if interaction.guild else None
+        log_channel_id = settings.get("ticket_log_channel_id") if settings else None
+        
+        log_channel = interaction.guild.get_channel(log_channel_id) if interaction.guild and log_channel_id else None
         if log_channel:
             await log_channel.send(f"Тикет {interaction.channel.mention} закрыт пользователем {interaction.user.mention}.")
 
@@ -96,3 +87,24 @@ class TicketControlView(discord.ui.View):
     @discord.ui.button(label="Claim", style=discord.ButtonStyle.primary, custom_id="ticket_claim")
     async def claim(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(f"Тикет взял в работу {interaction.user.mention}.")
+
+    @discord.ui.button(label="Delete", style=discord.ButtonStyle.danger, custom_id="ticket_delete")
+    async def delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.channel is None:
+            return
+        
+        await interaction.response.send_message("Тикет удаляется.", ephemeral=True)
+
+        settings = await db_manager.get_guild_settings(interaction.guild.id) if interaction.guild else None
+        log_channel_id = settings.get("ticket_log_channel_id") if settings else None
+        
+        log_channel = interaction.guild.get_channel(log_channel_id) if interaction.guild and log_channel_id else None
+        if log_channel:
+            await log_channel.send(f"Тикет {interaction.channel.name} был удалён.")
+
+        await db_manager.execute("DELETE FROM tickets WHERE channel_id = $1", interaction.channel.id)
+        
+        try:
+            await interaction.channel.delete()
+        except discord.HTTPException:
+            pass

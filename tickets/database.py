@@ -14,6 +14,16 @@ async def create_ticket(guild_id, user_id, channel_id, category_id=None):
     )
     return row["ticket_id"] if row else None
 
+async def check_ticket_exists(guild_id, user_id):
+    row = await db_manager.fetchrow(
+        "SELECT ticket_id FROM tickets WHERE guild_id = $1 AND user_id = $2 AND status = 'open'",
+        guild_id, user_id
+    )
+    return row is not None
+
+async def get_categories():
+    return await db_manager.fetch("SELECT * FROM ticket_categories")
+
 async def close_ticket(channel_id):
     await db_manager.execute(
         "UPDATE tickets SET status = 'closed', closed_at = CURRENT_TIMESTAMP WHERE channel_id = $1",

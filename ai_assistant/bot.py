@@ -66,19 +66,19 @@ def setup(bot: commands.Bot):
 
         if interaction.guild is None:
             return await send_error(interaction, "AI", "Команда доступна только на сервере.")
-        if not _client.is_enabled:
+        if not await _client.is_enabled(interaction.guild.id):
             return await send_error(interaction, "AI отключён", "AI-ассистент сейчас выключен в конфигурации.")
         if not _client.is_ready:
             error = _client.startup_error or AIProviderError("AI недоступен.", code="disabled")
             return await send_error(interaction, "AI недоступен", error.message)
-        if not _client.rate_limit_ok(interaction.user.id):
+        if not await _client.rate_limit_ok(interaction.user.id, interaction.guild.id):
             return await send_error(interaction, "Лимит", "Слишком много запросов. Попробуй позже.")
 
         await interaction.response.defer(thinking=True)
         started = time.perf_counter()
 
         try:
-            response = await _client.generate(interaction.user.id, prompt)
+            response = await _client.generate(interaction.user.id, interaction.guild.id, prompt)
         except AIProviderError as exc:
             logging.warning("AI error provider=%s code=%s user_id=%s", _client.provider_name, exc.code, interaction.user.id)
             return await send_error(interaction, "Ошибка AI", exc.message)
@@ -100,7 +100,7 @@ def setup(bot: commands.Bot):
     @bot.tree.command(name="ai-clear", description="Очистить историю AI")
     async def ai_clear(interaction: discord.Interaction) -> None:
         assert _client is not None
-        _client.clear_history(interaction.user.id)
+        await _client.clear_history(interaction.user.id)
         await interaction.response.send_message(
             embed=build_embed("AI", "История диалога очищена.", color=discord.Color.green()),
             ephemeral=True,

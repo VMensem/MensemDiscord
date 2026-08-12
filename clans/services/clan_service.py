@@ -1,5 +1,5 @@
 import discord
-from ..database import create_clan, add_clan_member
+from ..database import create_clan, add_clan_member, update_clan_discord_ids
 
 async def create_new_clan(guild: discord.Guild, leader: discord.Member, name: str, tag: str, description: str) -> bool:
     # 1. Create Discord structure
@@ -17,8 +17,7 @@ async def create_new_clan(guild: discord.Guild, leader: discord.Member, name: st
 
     # 2. Save to DB
     clan_id = await create_clan(guild.id, name, tag, description, leader.id)
-    # Need to update DB with Discord IDs
-    # (Simplified for now, will enhance schema/db functions)
+    await update_clan_discord_ids(clan_id, role.id, category.id, text_channel.id, voice_channel.id)
 
     # 3. Add member
     await add_clan_member(clan_id, leader.id)

@@ -33,16 +33,19 @@ class Leveling(commands.Cog):
             return
 
         new_xp = old_xp + XP_PER_MESSAGE
+        new_level = level_for_xp(new_xp)
+        old_level = level_for_xp(old_xp)
+        
         await db_manager.execute(
             """
-            INSERT INTO users (guild_id, user_id, xp, last_xp)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (guild_id, user_id) DO UPDATE SET xp = excluded.xp, last_xp = excluded.last_xp
+            INSERT INTO users (guild_id, user_id, xp, level, last_xp)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (guild_id, user_id) DO UPDATE SET xp = excluded.xp, level = excluded.level, last_xp = excluded.last_xp
             """,
-            message.guild.id, message.author.id, new_xp, now
+            message.guild.id, message.author.id, new_xp, new_level, now
         )
 
-        if level_for_xp(new_xp) > level_for_xp(old_xp):
+        if new_level > old_level:
             pass
 
     @app_commands.command(name="rank", description="Показать уровень участника")

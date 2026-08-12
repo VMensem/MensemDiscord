@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import discord
 
-from .database import load_giveaways, finish_giveaway, get_participants
+from .database import get_all_giveaways, finish_giveaway, get_participants
 
 
 RED = discord.Color.from_rgb(220, 20, 60)
@@ -19,13 +19,17 @@ class GiveawayManager:
         await self.bot.wait_until_ready()
 
         while not self.bot.is_closed():
-            giveaways = load_giveaways()
+            giveaways = await get_all_giveaways()
 
-            for giveaway in giveaways.values():
+            for giveaway in giveaways:
                 if giveaway["ended"]:
                     continue
 
-                end_time = datetime.fromisoformat(giveaway["end_time"])
+                end_time = giveaway["end_time"]
+                
+                # Ensure end_time is timezone aware for comparison
+                if end_time.tzinfo is None:
+                    end_time = end_time.replace(tzinfo=timezone.utc)
 
                 if datetime.now(timezone.utc) >= end_time:
                     await self.finish(giveaway)
@@ -38,20 +42,20 @@ class GiveawayManager:
 
         channel = self.bot.get_channel(channel_id)
         if not channel:
-            finish_giveaway(message_id)
+            await finish_giveaway(message_id)
             return
 
         try:
             message = await channel.fetch_message(message_id)
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            finish_giveaway(message_id)
+            await finish_giveaway(message_id)
             return
         except Exception:
             logging.exception("Unexpected giveaway fetch error")
-            finish_giveaway(message_id)
+            await finish_giveaway(message_id)
             return
 
-        participants = get_participants(message_id)
+        participants = await get_participants(message_id)
 
         embed = discord.Embed(
             title="🎉 Розыгрыш завершён",
@@ -76,4 +80,4 @@ class GiveawayManager:
         else:
             await channel.send("😢 Розыгрыш завершён, но участников не было.")
 
-        finish_giveaway(message_id)
+        await finish_giveaway(message_id)

@@ -166,7 +166,7 @@ class Giveaways(commands.Cog):
 
 
 
-        create_giveaway(
+        await create_giveaway(
             message_id=message.id,
             channel_id=interaction.channel.id,
             guild_id=interaction.guild.id,

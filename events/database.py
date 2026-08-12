@@ -18,12 +18,12 @@ async def create_event(
     row = await db_manager.fetchrow(
         """
         INSERT INTO events (
-            guild_id, creator_id, title, description, start_time, max_participants, reward, state
+            guild_id, creator_id, title, description, start_time, max_participants, reward, state, channel_id, message_id
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft')
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8, $9)
         RETURNING event_id
         """,
-        guild_id, creator_id, title, description, start_time, max_participants, reward
+        guild_id, creator_id, title, description, start_time, max_participants, reward, channel_id, message_id
     )
     return row["event_id"] if row else 0
 

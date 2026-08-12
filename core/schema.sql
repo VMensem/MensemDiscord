@@ -158,7 +158,9 @@ CREATE TABLE IF NOT EXISTS events (
     max_participants INTEGER,
     reward TEXT,
     game TEXT,
-    state VARCHAR(20) DEFAULT 'draft'
+    state VARCHAR(20) DEFAULT 'draft',
+    channel_id BIGINT,
+    message_id BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS event_participants (
@@ -347,6 +349,23 @@ CREATE TABLE IF NOT EXISTS suggestion_config (
     PRIMARY KEY (guild_id, key)
 );
 
+-- Giveaways
+CREATE TABLE IF NOT EXISTS giveaways (
+    message_id BIGINT PRIMARY KEY,
+    channel_id BIGINT NOT NULL,
+    guild_id BIGINT NOT NULL,
+    prize TEXT NOT NULL,
+    creator_id BIGINT NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    ended BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS giveaway_participants (
+    message_id BIGINT REFERENCES giveaways(message_id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL,
+    PRIMARY KEY (message_id, user_id)
+);
+
 -- Embed Templates
 CREATE TABLE IF NOT EXISTS message_templates (
     template_id SERIAL PRIMARY KEY,
@@ -385,6 +404,17 @@ CREATE TABLE IF NOT EXISTS ai_config (
     key VARCHAR(50) NOT NULL,
     value TEXT NOT NULL,
     PRIMARY KEY (guild_id, key)
+);
+
+-- AI Knowledge Base
+CREATE TABLE IF NOT EXISTS ai_knowledge_base (
+    kb_id SERIAL PRIMARY KEY,
+    guild_id BIGINT NOT NULL,
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Personal Roles Listings

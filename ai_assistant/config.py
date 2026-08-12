@@ -36,9 +36,9 @@ def load_system_prompt() -> str:
 @dataclass(frozen=True)
 class AIConfig:
     provider: str
-    gemini_api_key: str
+    gemini_api_keys: list[str]
     gemini_model: str
-    openai_api_key: str
+    openai_api_keys: list[str]
     openai_model: str
     max_tokens: int
     temperature: float
@@ -53,11 +53,23 @@ def load_ai_config() -> AIConfig:
     if provider not in {"gemini", "openai", "none"}:
         provider = "none"
 
+    def get_keys(prefix: str) -> list[str]:
+        keys = []
+        # Support CSV list
+        csv = os.getenv(f"{prefix}_API_KEYS", "").strip()
+        if csv:
+            keys.extend([k.strip() for k in csv.split(",") if k.strip()])
+        # Support single key
+        single = os.getenv(f"{prefix}_API_KEY", "").strip()
+        if single and single not in keys:
+            keys.append(single)
+        return keys
+
     return AIConfig(
         provider=provider,
-        gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
+        gemini_api_keys=get_keys("GEMINI"),
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash",
-        openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
+        openai_api_keys=get_keys("OPENAI"),
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
         max_tokens=max(1, _int_env("AI_MAX_TOKENS", 1024)),
         temperature=max(0.0, min(2.0, _float_env("AI_TEMPERATURE", 0.7))),

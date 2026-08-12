@@ -55,5 +55,12 @@ async def update_clan_balance(clan_id: int, amount: int):
         amount, clan_id
     )
 
-async def delete_clan(clan_id: int):
-    await db_manager.execute("DELETE FROM clans WHERE clan_id = $1", clan_id)
+async def update_clan_discord_ids(clan_id: int, role_id: int, category_id: int, chat_channel_id: int, voice_channel_id: int):
+    await db_manager.execute(
+        """
+        UPDATE clans 
+        SET role_id = $1, category_id = $2, chat_channel_id = $3, voice_channel_id = $4 
+        WHERE clan_id = $5
+        """,
+        role_id, category_id, chat_channel_id, voice_channel_id, clan_id
+    )

@@ -41,4 +41,8 @@ class DatabaseManager:
         async with self.pool.acquire() as conn:
             return await conn.fetchrow(query, *args)
 
+    async def get_guild_settings(self, guild_id):
+        query = "SELECT * FROM guild_settings WHERE guild_id = $1"
+        return await self.fetchrow(query, guild_id)
+
 db_manager = DatabaseManager()
