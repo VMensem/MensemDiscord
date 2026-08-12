@@ -3,8 +3,8 @@ from discord import app_commands
 from discord.ext import commands
 
 class EmbedModal(discord.ui.Modal, title="Создание Embed"):
-    title_in = discord.ui.TextInput(label="Заголовок", required=True, max_length=256)
-    desc_in = discord.ui.TextInput(label="Описание", style=discord.TextStyle.paragraph, required=True, max_length=4000)
+    title_in = discord.ui.TextInput(label="Заголовок", required=False, max_length=256)
+    desc_in = discord.ui.TextInput(label="Описание", style=discord.TextStyle.paragraph, required=False, max_length=4000)
     color_in = discord.ui.TextInput(label="Цвет (HEX, например #FF0000)", required=False, max_length=7)
     footer_in = discord.ui.TextInput(label="Футер", required=False, max_length=200)
     image_url = discord.ui.TextInput(label="URL Картинки", required=False)
