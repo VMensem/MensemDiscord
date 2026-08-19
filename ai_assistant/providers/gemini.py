@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import logging
 
 from ..config import AIConfig
 from .base import AIMessage, AIProviderError, AIResponse
@@ -15,9 +16,11 @@ class GeminiProvider:
         self.max_tokens = config.max_tokens
         self.temperature = config.temperature
         self.timeout = config.timeout
+        self.api_keys = config.gemini_api_keys
+        self.current_key_index = 0
 
-        if not config.gemini_api_key:
-            raise AIProviderError("GEMINI_API_KEY не указан.", code="missing_api_key")
+        if not self.api_keys:
+            raise AIProviderError("Gemini API ключи не указаны.", code="missing_api_key")
 
         try:
             from google import genai
@@ -26,7 +29,13 @@ class GeminiProvider:
             raise AIProviderError("Не установлен официальный Gemini SDK `google-genai`.", code="missing_sdk") from exc
 
         self._types = types
-        self.client = genai.Client(api_key=config.gemini_api_key)
+        self.client = genai.Client(api_key=self.api_keys[self.current_key_index])
+
+    def _rotate_key(self):
+        self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+        from google import genai
+        self.client = genai.Client(api_key=self.api_keys[self.current_key_index])
+        logging.info("Gemini API key rotated to #%d", self.current_key_index + 1)
 
     async def generate(self, messages: list[AIMessage], system_prompt: str) -> AIResponse:
         prompt = self._build_prompt(messages)
@@ -36,42 +45,52 @@ class GeminiProvider:
             max_output_tokens=self.max_tokens,
         )
 
-        started = time.perf_counter()
-        try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self.client.models.generate_content,
+        last_error = None
+        for attempt in range(len(self.api_keys)):
+            started = time.perf_counter()
+            logging.info("Gemini API call starting for model=%s (attempt %d)", self.model, attempt + 1)
+            try:
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self.client.models.generate_content,
+                        model=self.model,
+                        contents=prompt,
+                        config=config,
+                    ),
+                    timeout=self.timeout,
+                )
+                # Success
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                text = (getattr(response, "text", None) or "").strip()
+                if not text:
+                    raise AIProviderError("Gemini вернул пустой ответ.", code="empty_response", retryable=True)
+                
+                usage = getattr(response, "usage_metadata", None)
+                prompt_tokens = getattr(usage, "prompt_token_count", None) if usage else None
+                completion_tokens = getattr(usage, "candidates_token_count", None) if usage else None
+                total_tokens = getattr(usage, "total_token_count", None) if usage else None
+
+                return AIResponse(
+                    text=text,
+                    provider=self.name,
                     model=self.model,
-                    contents=prompt,
-                    config=config,
-                ),
-                timeout=self.timeout,
-            )
-        except asyncio.TimeoutError as exc:
-            raise AIProviderError("Gemini не ответил за отведённое время.", code="timeout", retryable=True) from exc
-        except Exception as exc:
-            code = self._classify_error(exc)
-            raise AIProviderError(self._friendly_error(code), code=code, retryable=code in {"rate_limited", "network"}) from exc
+                    latency_ms=latency_ms,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                )
 
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        text = (getattr(response, "text", None) or "").strip()
-        if not text:
-            raise AIProviderError("Gemini вернул пустой ответ.", code="empty_response", retryable=True)
+            except Exception as exc:
+                last_error = exc
+                logging.error("Gemini API error (attempt %d): %s", attempt + 1, exc)
+                code = self._classify_error(exc)
+                if code in {"rate_limited", "auth", "network"}:
+                    self._rotate_key()
+                    continue
+                raise AIProviderError(self._friendly_error(code), code=code, retryable=False) from exc
+        
+        raise AIProviderError("Все Gemini ключи исчерпаны или недоступны.", code="all_keys_failed") from last_error
 
-        usage = getattr(response, "usage_metadata", None)
-        prompt_tokens = getattr(usage, "prompt_token_count", None) if usage else None
-        completion_tokens = getattr(usage, "candidates_token_count", None) if usage else None
-        total_tokens = getattr(usage, "total_token_count", None) if usage else None
-
-        return AIResponse(
-            text=text,
-            provider=self.name,
-            model=self.model,
-            latency_ms=latency_ms,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-        )
 
     def _build_prompt(self, messages: list[AIMessage]) -> str:
         lines = []

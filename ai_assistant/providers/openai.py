@@ -14,7 +14,7 @@ class OpenAIProvider:
         self.max_tokens = config.max_tokens
         self.temperature = config.temperature
 
-        if not config.openai_api_key:
+        if not config.openai_api_keys:
             raise AIProviderError("OPENAI_API_KEY не указан.", code="missing_api_key")
 
         try:
@@ -23,7 +23,7 @@ class OpenAIProvider:
             raise AIProviderError("Не установлен официальный OpenAI SDK `openai`.", code="missing_sdk") from exc
 
         self._openai_errors = self._load_error_types()
-        self.client = AsyncOpenAI(api_key=config.openai_api_key, timeout=config.timeout)
+        self.client = AsyncOpenAI(api_key=config.openai_api_keys[0], timeout=config.timeout)
 
     async def generate(self, messages: list[AIMessage], system_prompt: str) -> AIResponse:
         payload = [{"role": "system", "content": system_prompt}]

@@ -24,7 +24,7 @@ async def load_stats_db():
     # Placeholder for migration or if needed for legacy compatibility
     return {}, {}, {}, {}, set()
 
-async def save_stats_db(*args):
+def save_stats_db(*args):
     # Placeholder for migration or if needed for legacy compatibility
     pass
 

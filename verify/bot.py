@@ -738,6 +738,8 @@ class VerifyView(discord.ui.View):
         except discord.HTTPException as exc:
             return await interaction.response.send_message(f"Discord API вернул ошибку: {exc}", ephemeral=True)
 
+        await interaction.response.defer()
+
         record_support_action(interaction.user.id, action_key)
         voice_warning = await disconnect_from_passing(self.target)
         review_sent = True if action_key == "no_access" else await send_review_request(self.target, interaction.user, interaction.guild)
@@ -747,7 +749,7 @@ class VerifyView(discord.ui.View):
             "no_access" if action_key == "no_access" else "verified",
         )
         await send_verify_log(interaction, self.target, label)
-        await interaction.response.edit_message(content=None, embed=done_embed, view=None)
+        await interaction.edit_original_response(content=None, embed=done_embed, view=None)
         await interaction.followup.send(
             "Готово: "
             + (

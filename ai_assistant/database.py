@@ -3,7 +3,7 @@ import time
 
 async def get_config(guild_id: int, key: str, default: str | None = None) -> str | None:
     row = await db_manager.fetchrow(
-        "SELECT value FROM ai_config WHERE guild_id = $1 AND key = $2",
+        "SELECT value FROM ai_config WHERE guild_id = $1 AND key_name = $2",
         guild_id, key
     )
     return str(row["value"]) if row else default
@@ -11,8 +11,8 @@ async def get_config(guild_id: int, key: str, default: str | None = None) -> str
 async def set_config(guild_id: int, key: str, value: str) -> None:
     await db_manager.execute(
         """
-        INSERT INTO ai_config (guild_id, key, value) VALUES ($1, $2, $3)
-        ON CONFLICT (guild_id, key) DO UPDATE SET value = $3
+        INSERT INTO ai_config (guild_id, key_name, value) VALUES ($1, $2, $3)
+        ON DUPLICATE KEY UPDATE value = VALUES(value)
         """,
         guild_id, key, str(value)
     )
@@ -55,10 +55,10 @@ async def check_rate_limit(user_id: int, limit_per_hour: int) -> bool:
     if not row or (now - float(row["window_start"])) > 3600:
         await db_manager.execute(
             """
-            INSERT INTO ai_ratelimits (user_id, count, window_start) VALUES ($1, 1, $2)
-            ON CONFLICT (user_id) DO UPDATE SET count = 1, window_start = $2
+            INSERT INTO ai_ratelimits (user_id, count, window_start) VALUES ($1, $2, $3)
+            ON DUPLICATE KEY UPDATE count = VALUES(count), window_start = VALUES(window_start)
             """,
-            user_id, now
+            user_id, 1, now
         )
         return True
 

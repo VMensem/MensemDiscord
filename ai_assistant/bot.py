@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+import re
 
 import discord
 from discord import app_commands
@@ -9,6 +10,7 @@ from discord.ext import commands
 
 from .client import AIClient
 from .providers import AIProviderError
+from .knowledge_base import upsert_knowledge
 
 
 EMBED_COLOR = discord.Color.red()
@@ -25,25 +27,16 @@ def build_error_embed(title: str, description: str) -> discord.Embed:
 
 def build_response_embed(
     response_text: str,
-    provider: str,
-    model: str,
-    latency_ms: int,
-    tokens: tuple[int | None, int | None, int | None],
 ) -> discord.Embed:
-    prompt_tokens, completion_tokens, total_tokens = tokens
-    embed = build_embed("AI-ответ", response_text[:4000])
-    embed.add_field(name="Провайдер", value=provider, inline=True)
-    embed.add_field(name="Модель", value=model, inline=True)
-    embed.add_field(name="Время", value=f"{latency_ms} мс", inline=True)
-    if any(value is not None for value in tokens):
-        usage = []
-        if prompt_tokens is not None:
-            usage.append(f"prompt: {prompt_tokens}")
-        if completion_tokens is not None:
-            usage.append(f"completion: {completion_tokens}")
-        if total_tokens is not None:
-            usage.append(f"total: {total_tokens}")
-        embed.add_field(name="Токены", value=" | ".join(usage), inline=False)
+    # Make text bold for better readability
+    description = f"**{response_text}**"
+    embed = build_embed("", description[:4000])
+    
+    # Add footer in the format: Mensem • AI Assistant • HH:MM
+    from datetime import datetime
+    now = datetime.now().strftime("%H:%M")
+    embed.set_footer(text=f"Mensem • AI Assistant • {now}")
+    
     return embed
 
 
@@ -74,6 +67,20 @@ def setup(bot: commands.Bot):
         if not await _client.rate_limit_ok(interaction.user.id, interaction.guild.id):
             return await send_error(interaction, "Лимит", "Слишком много запросов. Попробуй позже.")
 
+        # Fact saving logic
+        trigger_pattern = r'^(запомни[:\s]+что|запомни:|сохрани[:\s]+информацию:|сохрани:|факт:|запиши:)\s*(.*)'
+        match = re.match(trigger_pattern, prompt, re.IGNORECASE)
+        if match:
+            content = match.group(2).strip()
+            if not content:
+                return await interaction.response.send_message(embed=build_embed("Ошибка", "Нечего запоминать."), ephemeral=True)
+            
+            success = await upsert_knowledge(interaction.guild.id, content)
+            if success:
+                return await interaction.response.send_message(embed=build_embed("AI", "Запомнил! 🧠", color=discord.Color.green()))
+            else:
+                return await interaction.response.send_message(embed=build_embed("AI", "Эта информация уже сохранена.", color=discord.Color.yellow()))
+
         await interaction.response.defer(thinking=True)
         started = time.perf_counter()
 
@@ -87,14 +94,7 @@ def setup(bot: commands.Bot):
             return await send_error(interaction, "Ошибка AI", "Не удалось получить ответ от AI.")
 
         total_ms = int((time.perf_counter() - started) * 1000)
-        embed = build_response_embed(
-            response.text,
-            response.provider,
-            response.model,
-            total_ms,
-            (response.prompt_tokens, response.completion_tokens, response.total_tokens),
-        )
-        embed.set_footer(text=f"Провайдер: {response.provider} | Модель: {response.model}")
+        embed = build_response_embed(response.text)
         await interaction.followup.send(embed=embed)
 
     @bot.tree.command(name="ai-clear", description="Очистить историю AI")

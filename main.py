@@ -4,9 +4,14 @@ import os
 import sys
 import threading
 
+from dotenv import load_dotenv
+
+# Load .env from parent directory before importing modules that depend on it
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(dotenv_path=dotenv_path)
+
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 
 import loader
 from web_site.app import create_app
@@ -14,7 +19,6 @@ from core.database import db_manager
 
 
 logging.basicConfig(level=logging.INFO)
-load_dotenv()
 
 
 TOKEN = os.getenv("TOKEN")

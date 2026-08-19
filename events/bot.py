@@ -1,5 +1,4 @@
 from discord.ext import commands
-from .database import init_db
 from .views import MainEventMenu
 from .commands import event
 
@@ -8,7 +7,6 @@ class Events(commands.Cog):
         self.bot = bot
 
     async def cog_load(self):
-        await init_db()
         self.bot.add_view(MainEventMenu())
 
 async def setup(bot):

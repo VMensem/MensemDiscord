@@ -8,7 +8,12 @@ async def add_room(guild_id: int, channel_id: int, owner_id: int, room_type: str
         """
         INSERT INTO voice_rooms (guild_id, channel_id, owner_id, room_type, channel_name, panel_channel_id)
         VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (channel_id) DO UPDATE SET owner_id = $3, room_type = $4, channel_name = $5, panel_channel_id = $6, is_active = TRUE
+        ON CONFLICT (channel_id) DO UPDATE SET 
+            owner_id = excluded.owner_id, 
+            room_type = excluded.room_type, 
+            channel_name = excluded.channel_name, 
+            panel_channel_id = excluded.panel_channel_id, 
+            is_active = TRUE
         """,
         guild_id, channel_id, owner_id, room_type, channel_name, panel_channel_id
     )
@@ -46,3 +51,4 @@ async def update_room_panel(channel_id: int, panel_channel_id: int | None):
 async def get_owner(channel_id: int):
     room = await get_room(channel_id)
     return room["owner_id"] if room else None
+

@@ -55,14 +55,11 @@ def load_ai_config() -> AIConfig:
 
     def get_keys(prefix: str) -> list[str]:
         keys = []
-        # Support CSV list
-        csv = os.getenv(f"{prefix}_API_KEYS", "").strip()
-        if csv:
-            keys.extend([k.strip() for k in csv.split(",") if k.strip()])
-        # Support single key
-        single = os.getenv(f"{prefix}_API_KEY", "").strip()
-        if single and single not in keys:
-            keys.append(single)
+        # Support new GEMINI_API_KEY1...10
+        for i in range(1, 11):
+            key = os.getenv(f"{prefix}_API_KEY{i}", "").strip()
+            if key:
+                keys.append(key)
         return keys
 
     return AIConfig(

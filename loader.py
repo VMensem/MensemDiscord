@@ -25,6 +25,7 @@ MODULES = [
     "embeds",
     "server_management",
     "staff",
+    "antinuke",
 ]
 
 

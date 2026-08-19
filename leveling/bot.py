@@ -39,8 +39,8 @@ class Leveling(commands.Cog):
         await db_manager.execute(
             """
             INSERT INTO users (guild_id, user_id, xp, level, last_xp)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (guild_id, user_id) DO UPDATE SET xp = excluded.xp, level = excluded.level, last_xp = excluded.last_xp
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE xp = VALUES(xp), level = VALUES(level), last_xp = VALUES(last_xp)
             """,
             message.guild.id, message.author.id, new_xp, new_level, now
         )

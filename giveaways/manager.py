@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import discord
 
-from .database import get_all_giveaways, finish_giveaway, get_participants
+from .database import get_all_giveaways, finish_giveaway, get_participants, add_winner
 
 
 RED = discord.Color.from_rgb(220, 20, 60)
@@ -39,6 +39,7 @@ class GiveawayManager:
     async def finish(self, giveaway):
         message_id = giveaway["message_id"]
         channel_id = giveaway["channel_id"]
+        winner_count = giveaway["winner_count"]
 
         channel = self.bot.get_channel(channel_id)
         if not channel:
@@ -62,22 +63,37 @@ class GiveawayManager:
             color=RED,
         )
         embed.add_field(name="🎁 Приз", value=f"**{giveaway['prize']}**", inline=False)
-
-        winner = None
-        if participants:
-            winner = random.choice(participants)
-            embed.add_field(name="🏆 Победитель", value=f"<@{winner}>", inline=False)
-        else:
-            embed.add_field(name="🏆 Победитель", value="Нет участников 😢", inline=False)
-
+        embed.add_field(name="🏆 Победителей", value=str(winner_count), inline=True)
         embed.add_field(name="👥 Участников", value=str(len(participants)), inline=True)
+        if giveaway["conditions"]:
+            embed.add_field(name="📋 Условия", value=giveaway["conditions"], inline=False)
+
+        winners = []
+        if participants:
+            # Pick unique winners
+            count = min(len(participants), winner_count)
+            winners = random.sample(participants, count)
+            
+            # Save winners to DB
+            for i, winner_id in enumerate(winners):
+                await add_winner(message_id, winner_id, i+1)
+            
+            winner_mentions = "\n".join([f"<@{w}>" for w in winners])
+            embed.add_field(name="🏆 Победители", value=winner_mentions, inline=False)
+        else:
+            embed.add_field(name="🏆 Победители", value="Нет участников 😢", inline=False)
+
         embed.set_footer(text="Спасибо всем за участие ❤️")
+        
+        # Add warning about manual condition check
+        embed.add_field(name="⚠️ Внимание", value="Условия проверяются STAFF вручную.", inline=False)
 
         await message.edit(embed=embed, view=None)
 
-        if winner:
-            await channel.send(f"🎉 Поздравляем <@{winner}>! Ты выиграл **{giveaway['prize']}** 🏆")
+        if winners:
+            await channel.send(f"🎉 Поздравляем победителей! 🏆\n" + "\n".join([f"<@{w}>" for w in winners]))
         else:
             await channel.send("😢 Розыгрыш завершён, но участников не было.")
 
         await finish_giveaway(message_id)
+

@@ -1,6 +1,8 @@
 discord.py
 python-dotenv
 asyncpg
+aiosqlite
+aiomysql
 Pillow
 PyNaCl
 openai
