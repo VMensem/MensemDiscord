@@ -18,7 +18,8 @@ class ReportModal(discord.ui.Modal, title="Создание жалобы"):
     desc = discord.ui.TextInput(label="Описание", style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):
-        report_id = create_report(
+        report_id = await create_report(
+            interaction.guild_id,
             interaction.user.id,
             interaction.channel.id if interaction.channel else 0,
             str(self.reason.value),

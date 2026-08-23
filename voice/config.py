@@ -21,7 +21,8 @@ LOVE_CATEGORY_ID = int(os.getenv("LOVE_CATEGORY_ID", 0))
 SOBES_CATEGORY_ID = int(os.getenv("SOBES_CATEGORY_ID", 0))
 REPORT_CATEGORY_ID = int(os.getenv("REPORT_CATEGORY_ID", 0))
 
-DATABASE = "voice/data/voice.db"
+# DATABASE path removed in favor of PostgreSQL
+
 
 DELETE_DELAY = 5
 DEFAULT_BITRATE = None

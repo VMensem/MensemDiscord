@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import logging
 
 import discord
@@ -9,6 +10,9 @@ from . import cache, config, generator, stats, updater
 
 
 logger = logging.getLogger(__name__)
+# Set level based on DEBUG_MODE (defaulting to WARNING if not true)
+debug_mode = os.getenv("DEBUG_MODE", "false").lower() == "true"
+logger.setLevel(logging.DEBUG if debug_mode else logging.WARNING)
 
 
 class BannerCog(commands.Cog):

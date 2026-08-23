@@ -24,27 +24,26 @@ class VoteView(discord.ui.View):
         sug = get_suggestion_by_message(interaction.message.id)
         if not sug: return await interaction.response.send_message("Ошибка БД", ephemeral=True)
         
-        up = json.loads(sug['votes_up'])
-        down = json.loads(sug['votes_down'])
         uid = interaction.user.id
         
+        # PostgreSQL array handling
         if type == "up":
-            if uid in up: up.remove(uid)
-            else: 
-                up.append(uid)
-                if uid in down: down.remove(uid)
-        else:
-            if uid in down: down.remove(uid)
+            # If user already voted up, remove. If voted down, remove from down and add to up.
+            if uid in sug['votes_up']:
+                await db_manager.execute("UPDATE suggestions SET votes_up = array_remove(votes_up, $1) WHERE suggestion_id = $2", uid, sug['id'])
             else:
-                down.append(uid)
-                if uid in up: up.remove(uid)
+                await db_manager.execute("UPDATE suggestions SET votes_up = array_append(votes_up, $1), votes_down = array_remove(votes_down, $1) WHERE suggestion_id = $2", uid, sug['id'])
+        else:
+            if uid in sug['votes_down']:
+                await db_manager.execute("UPDATE suggestions SET votes_down = array_remove(votes_down, $1) WHERE suggestion_id = $2", uid, sug['id'])
+            else:
+                await db_manager.execute("UPDATE suggestions SET votes_down = array_append(votes_down, $1), votes_up = array_remove(votes_up, $1) WHERE suggestion_id = $2", uid, sug['id'])
         
-        update_suggestion(sug['id'], votes_up=json.dumps(up), votes_down=json.dumps(down))
+        # Refresh suggestion data to get new counts
+        sug = await get_suggestion(sug['id'])
         
         embed = interaction.message.embeds[0]
-        # Предполагаем, что поле "📊 Статистика" - это поле с индексом 4
-        # Лучше найти поле по имени, но оставим как есть для совместимости
-        embed.set_field_at(4, name="📊 Статистика", value=f"👍 {len(up)} | 👎 {len(down)}")
+        embed.set_field_at(4, name="📊 Статистика", value=f"👍 {len(sug['votes_up'])} | 👎 {len(sug['votes_down'])}")
         await interaction.message.edit(embed=embed)
         await interaction.response.send_message("Голос учтен", ephemeral=True)
 
@@ -162,6 +161,6 @@ class Suggestions(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
-    init_db()
+    await init_db()
     await bot.add_cog(Suggestions(bot))
     bot.add_view(VoteView())

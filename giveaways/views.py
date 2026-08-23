@@ -144,7 +144,7 @@ class GiveawayView(discord.ui.View):
     ):
 
 
-        result = add_participant(
+        result = await add_participant(
             self.message_id,
             interaction.user.id
         )
@@ -179,7 +179,7 @@ class GiveawayView(discord.ui.View):
         button: discord.ui.Button
     ):
 
-        users = get_participants(
+        users = await get_participants(
             self.message_id
         )
 

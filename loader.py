@@ -22,9 +22,10 @@ MODULES = [
     "clans",
     "economy",
     "profiles",
-    "message_builder",
+    "embeds",
     "server_management",
     "staff",
+    "antinuke",
 ]
 
 

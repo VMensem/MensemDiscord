@@ -1,70 +1,57 @@
-import sqlite3
-import os
-import json
-from datetime import datetime
+from core.database import db_manager
 
-DB_PATH = "suggestions/data/suggestions.db"
+async def init_db():
+    pass
 
-def init_db():
-    os.makedirs("suggestions/data", exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS config (
-                key TEXT PRIMARY KEY,
-                value INTEGER
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS suggestions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                message_id INTEGER,
-                author_id INTEGER,
-                channel_id INTEGER,
-                title TEXT,
-                description TEXT,
-                status TEXT DEFAULT '🟡 На рассмотрении',
-                comment TEXT,
-                admin_id INTEGER,
-                votes_up TEXT DEFAULT '[]',
-                votes_down TEXT DEFAULT '[]',
-                created_at TIMESTAMP
-            )
-        """)
+async def get_config(guild_id: int, key: str):
+    row = await db_manager.fetchrow(
+        "SELECT value FROM suggestion_config WHERE guild_id = $1 AND key = $2",
+        guild_id, key
+    )
+    return row["value"] if row else None
 
-def get_config(key):
-    with sqlite3.connect(DB_PATH) as conn:
-        res = conn.execute("SELECT value FROM config WHERE key = ?", (key,)).fetchone()
-        return res[0] if res else None
+async def set_config(guild_id: int, key: str, value: int):
+    await db_manager.execute(
+        """
+        INSERT INTO suggestion_config (guild_id, key, value) VALUES ($1, $2, $3)
+        ON CONFLICT (guild_id, key) DO UPDATE SET value = $3
+        """,
+        guild_id, key, value
+    )
 
-def set_config(key, value):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
+async def add_suggestion(guild_id: int, author_id: int, channel_id: int, title: str, description: str):
+    row = await db_manager.fetchrow(
+        """
+        INSERT INTO suggestions (guild_id, author_id, channel_id, title, description)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING suggestion_id
+        """,
+        guild_id, author_id, channel_id, title, description
+    )
+    return row["suggestion_id"] if row else 0
 
-def add_suggestion(author_id, channel_id, title, description):
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.execute(
-            "INSERT INTO suggestions (author_id, channel_id, title, description, created_at) VALUES (?, ?, ?, ?, ?)",
-            (author_id, channel_id, title, description, datetime.now())
-        )
-        return cursor.lastrowid
+async def update_suggestion(suggestion_id: int, **kwargs):
+    fields = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(kwargs.keys())])
+    values = list(kwargs.values())
+    await db_manager.execute(
+        f"UPDATE suggestions SET {fields} WHERE suggestion_id = $1",
+        suggestion_id, *values
+    )
 
-def update_suggestion(id, **kwargs):
-    fields = ", ".join([f"{k} = ?" for k in kwargs.keys()])
-    values = list(kwargs.values()) + [id]
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(f"UPDATE suggestions SET {fields} WHERE id = ?", values)
+async def get_suggestion(suggestion_id: int):
+    return await db_manager.fetchrow(
+        "SELECT * FROM suggestions WHERE suggestion_id = $1",
+        suggestion_id
+    )
 
-def get_suggestion(id):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        return conn.execute("SELECT * FROM suggestions WHERE id = ?", (id,)).fetchone()
+async def get_suggestion_by_message(message_id: int):
+    return await db_manager.fetchrow(
+        "SELECT * FROM suggestions WHERE message_id = $1",
+        message_id
+    )
 
-def get_suggestion_by_message(message_id):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        return conn.execute("SELECT * FROM suggestions WHERE message_id = ?", (message_id,)).fetchone()
-
-def get_recent_suggestions(limit=10):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        return conn.execute("SELECT * FROM suggestions ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+async def get_recent_suggestions(guild_id: int, limit=10):
+    return await db_manager.fetch(
+        "SELECT * FROM suggestions WHERE guild_id = $1 ORDER BY suggestion_id DESC LIMIT $2",
+        guild_id, limit
+    )

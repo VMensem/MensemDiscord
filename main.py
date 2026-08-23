@@ -4,16 +4,21 @@ import os
 import sys
 import threading
 
+from dotenv import load_dotenv
+
+# Load .env from parent directory before importing modules that depend on it
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(dotenv_path=dotenv_path)
+
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 
 import loader
 from web_site.app import create_app
+from core.database import db_manager
 
 
 logging.basicConfig(level=logging.INFO)
-load_dotenv()
 
 
 TOKEN = os.getenv("TOKEN")
@@ -51,8 +56,11 @@ def safe_print(message: str):
 
 
 def run_web_server():
-    app = create_app()
-    app.run(host=WEB_HOST, port=WEB_PORT, debug=False, use_reloader=False)
+    try:
+        app = create_app()
+        app.run(host=WEB_HOST, port=WEB_PORT, debug=False, use_reloader=False)
+    except Exception as e:
+        logging.error("Web server startup failed: %s", e)
 
 
 def command_leaf_count(commands_):
@@ -138,6 +146,7 @@ async def on_command_error(ctx, error):
 
 
 async def run_bot():
+    await db_manager.connect()
     await loader.load_modules(bot)
 
     if not TOKEN:
@@ -146,13 +155,20 @@ async def run_bot():
 
     web_thread = threading.Thread(target=run_web_server, daemon=True)
     web_thread.start()
-    safe_print(f"OK Web server started in background: http://{WEB_HOST}:{WEB_PORT}")
+    
+    await asyncio.sleep(1)
+    
+    if web_thread.is_alive():
+        safe_print(f"OK Web server started in background: http://{WEB_HOST}:{WEB_PORT}")
+    else:
+        safe_print("FAIL Web server failed to start.")
 
     try:
         await bot.start(TOKEN)
     except asyncio.CancelledError:
         safe_print("Bot shutting down gracefully...")
     finally:
+        await db_manager.close()
         await bot.close()
 
 

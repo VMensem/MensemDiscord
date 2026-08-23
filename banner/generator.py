@@ -9,6 +9,7 @@ from . import config
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -77,7 +78,6 @@ def generate_banner(stats: dict) -> str:
             outline_color="#FF1A1A",
             glow_color="#FF1A1A55",
         )
-        logger.info("Banner value drawn: %s=%s", key, text)
 
     output_path = Path(config.TEMP_BANNER_PATH)
     img.save(output_path)

@@ -16,10 +16,10 @@ class ProfileCommands:
             member = member or interaction.user
             
             # Get stats
-            stats = await self.db.get_profile(member.id)
+            stats = await self.db.get_profile(member.id, interaction.guild_id)
             if not stats:
-                await self.db.create_profile(member.id)
-                stats = await self.db.get_profile(member.id)
+                await self.db.ensure_profile(member.id, interaction.guild_id)
+                stats = await self.db.get_profile(member.id, interaction.guild_id)
             
             # Generate image
             image_buffer = await self.generator.generate(member, stats)

@@ -1,51 +1,31 @@
-import sqlite3
-import os
+from core.database import db_manager
 
-DB_PATH = "tickets/data/tickets.db"
+async def init_db():
+    pass
 
-def init_db():
-    os.makedirs("tickets/data", exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS panels (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                guild_id INTEGER,
-                channel_id INTEGER,
-                message_id INTEGER,
-                title TEXT,
-                description TEXT,
-                color INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                panel_id INTEGER,
-                name TEXT,
-                description TEXT,
-                emoji TEXT,
-                target_category_id INTEGER,
-                staff_role_id INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS tickets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                guild_id INTEGER,
-                user_id INTEGER,
-                channel_id INTEGER,
-                category_id INTEGER,
-                status TEXT DEFAULT 'open'
-            );
-        """)
+async def create_ticket(guild_id, user_id, channel_id, category_id=None):
+    row = await db_manager.fetchrow(
+        """
+        INSERT INTO tickets (guild_id, user_id, channel_id, category_id, status)
+        VALUES ($1, $2, $3, $4, 'open')
+        RETURNING ticket_id
+        """,
+        guild_id, user_id, channel_id, category_id
+    )
+    return row["ticket_id"] if row else None
 
-def create_ticket(guild_id, user_id, channel_id, category_id=None):
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO tickets (guild_id, user_id, channel_id, category_id, status)
-            VALUES (?, ?, ?, ?, 'open')
-            """,
-            (guild_id, user_id, channel_id, category_id),
-        )
-        return cursor.lastrowid
+async def check_ticket_exists(guild_id, user_id):
+    row = await db_manager.fetchrow(
+        "SELECT ticket_id FROM tickets WHERE guild_id = $1 AND user_id = $2 AND status = 'open'",
+        guild_id, user_id
+    )
+    return row is not None
 
-def close_ticket(channel_id):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("UPDATE tickets SET status = 'closed' WHERE channel_id = ?", (channel_id,))
+async def get_categories():
+    return await db_manager.fetch("SELECT * FROM ticket_categories")
+
+async def close_ticket(channel_id):
+    await db_manager.execute(
+        "UPDATE tickets SET status = 'closed', closed_at = CURRENT_TIMESTAMP WHERE channel_id = $1",
+        channel_id
+    )

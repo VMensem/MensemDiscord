@@ -1,13 +1,11 @@
 from discord.ext import commands
 import discord
 from discord import app_commands
-from .database import init_db
 from .views import TicketControlView, TicketPanelView
 
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        init_db()
 
     async def cog_load(self):
         # Register persistent views

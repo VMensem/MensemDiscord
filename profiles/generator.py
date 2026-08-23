@@ -29,7 +29,10 @@ class ProfileGenerator:
         hud.paste(panel, (40, 40))
 
         # Add text
-        font_large = ImageFont.truetype(self.font_path, 60)
+        try:
+            font_large = ImageFont.truetype(self.font_path, 60)
+        except OSError:
+            font_large = ImageFont.load_default()
         draw.text((460, 100), f'{user.name}', fill='white', font=font_large)
 
         # Composite

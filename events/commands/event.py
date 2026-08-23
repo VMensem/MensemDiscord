@@ -18,7 +18,7 @@ class EventGroup(commands.GroupCog, group_name="event"):
         if interaction.guild is None:
             return await interaction.response.send_message("Команда работает только на сервере.", ephemeral=True)
 
-        embed = create_event_menu_embed(interaction.guild, interaction.user)
+        embed = await create_event_menu_embed(interaction.guild, interaction.user)
         await interaction.response.send_message(embed=embed, view=MainEventMenu(), ephemeral=True)
 
 
